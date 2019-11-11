@@ -318,23 +318,19 @@ public:
         imap.append(std::to_string(it.id()) + "\t" + it.pop() + "\n");
       }
 
-      auto d = x_1.great_circle_distance_to(x_2);
-
       if(vm.count("database")){
         try{
           std::string file = vm["database"].as<std::string>();
           sqlite3pp::database db(file.c_str());
-          sqlite3pp::command cmd(db, "INSERT INTO results (sim_gen, n1, n2, n_loci, genealogies, imap, lat, lon, distance) VALUES (?,?,?,?,?,?,?,?,?)");
-          cmd.binder() << std::to_string(n_sim_gen)
-                       << std::to_string(n_1)
-                       << std::to_string(n_2)
-                       << std::to_string(n_loci)
-                       << genealogies
+          sqlite3pp::command cmd(db, "CREATE TABLE results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, genealogies TEXT, imap TEXT, lat REAL, lon REAL)");
+          cmd.execute();
+
+          sqlite3pp::command cmd2(db, "INSERT INTO results (genealogies, imap, lat, lon) VALUES (?,?,?,?)");
+          cmd2.binder()<< genealogies
                        << imap
                        << std::to_string(x_2.lat())
-                       << std::to_string(x_2.lon())
-                       << std::to_string(d);
-          cmd.execute();
+                       << std::to_string(x_2.lon());
+          cmd2.execute();
         }
         catch(const std::exception& e){
           std::cout << e.what() << std::endl;
