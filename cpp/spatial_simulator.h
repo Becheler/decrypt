@@ -1,9 +1,10 @@
-#include "quetzal/quetzal.h"
+#include <include/quetzal.h>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/binomial.hpp>
+#include <boost/progress.hpp>
 
 #include <sqlite3.h>
-#include "sqlite3pp/headeronly_src/sqlite3pp.h"
+#include <sqlite3pp.h>
 
 #include <random>
 #include <algorithm>
@@ -218,7 +219,6 @@ public:
     /**********************
     *  Sampling schemes
     **********************/
-    std::cout << "--- Sampling individuals" << std::endl;
 
     // Sampling schemes are constrained to be in the last simulated distribution area
     auto distribution_area = pop_sizes.get().definition_space(sample_time);
@@ -235,17 +235,17 @@ public:
     {
       std::string filename = vm["distribution_area_out"].as<std::string>();
       env.export_to_shapefile(distribution_area, filename);
-      std::cout << "--- Distribution area exported" << std::endl;
     }
 
     if(vm.count("mask_out"))
     {
       std::string filename = vm["mask_out"].as<std::string>();
       env.export_to_shapefile(mask, filename);
-      std::cout << "--- Mask exported" << std::endl;
     }
 
+    std::cout << "--- Simulating coalescents" << std::endl;
     unsigned int n_sim_gen = vm["n_sim_gen"].as<unsigned int>();
+    boost::progress_display show_progress( n_sim_gen );
     for(unsigned int i_sim_gen = 0; i_sim_gen < n_sim_gen; ++i_sim_gen)
     {
       /************************************************************************
@@ -283,7 +283,6 @@ public:
       /**********************
        *  Coalescence
        **********************/
-       std::cout << "--- Coalescing" << std::endl;
 
        std::vector<Ind> v;
 
@@ -301,8 +300,6 @@ public:
 
       auto get_name = [](auto const& ind, time_type){return std::to_string(ind.id());};
       auto get_position = [](auto const& ind, time_type){return ind.x();};
-
-      std::cout << "--- Building Newick and individuals-to-populations mapping" << std::endl;
 
       std::string genealogies;
       unsigned int n_loci = vm["n_loci"].as<unsigned int>();
@@ -322,7 +319,7 @@ public:
         try{
           std::string file = vm["database"].as<std::string>();
           sqlite3pp::database db(file.c_str());
-          sqlite3pp::command cmd(db, "CREATE TABLE results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, genealogies TEXT, imap TEXT, lat REAL, lon REAL)");
+          sqlite3pp::command cmd(db, "CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, genealogies TEXT, imap TEXT, lat REAL, lon REAL)");
           cmd.execute();
 
           sqlite3pp::command cmd2(db, "INSERT INTO results (genealogies, imap, lat, lon) VALUES (?,?,?,?)");
@@ -331,6 +328,7 @@ public:
                        << std::to_string(x_2.lat())
                        << std::to_string(x_2.lon());
           cmd2.execute();
+          ++show_progress;
         }
         catch(const std::exception& e){
           std::cout << e.what() << std::endl;
