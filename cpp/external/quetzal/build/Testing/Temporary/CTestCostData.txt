@@ -1,0 +1,8 @@
+SpatialExpansion 1 14.3292
+coalescence_test 1 0.00956891
+demography_test 1 0.00400422
+expressive_test 1 0.00282998
+geography_test 1 0.035745
+matrix_operation_test 1 0.00306036
+random_test 1 0.0159743
+---

@@ -1,0 +1,44 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/quetzal/utils.h
+utils/matrix_operation.h
+../include/quetzal/utils/matrix_operation.h
+utils/sampling_scheme.h
+../include/quetzal/utils/sampling_scheme.h
+
+../include/quetzal/utils/matrix_operation.h
+boost/numeric/ublas/vector.hpp
+-
+boost/numeric/ublas/matrix_sparse.hpp
+-
+boost/numeric/ublas/io.hpp
+-
+boost/numeric/ublas/operation.hpp
+-
+algorithm
+-
+
+../include/quetzal/utils/sampling_scheme.h
+random
+-
+map
+-
+
+/home/becheler/dev/quetzal/test/unit_test/matrix_operation_test.cpp
+quetzal/utils.h
+-
+boost/numeric/ublas/matrix.hpp
+-
+boost/numeric/ublas/io.hpp
+-
+boost/test/unit_test.hpp
+-
+cmath
+-
+
