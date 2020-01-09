@@ -4,7 +4,7 @@
 #include <boost/progress.hpp>
 
 #include <sqlite3.h>
-#include <sqlite3pp.h>
+#include "sqlite3pp.h"
 
 #include <random>
 #include <algorithm>
