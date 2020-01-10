@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 project(decrypt)
 
 set(CMAKE_CXX_STANDARD 17)
-add_compile_options(-O3 -Wall -pedantic-errors -Wextra -DNDEBUG)
+#add_compile_options(-O3 -Wall -pedantic-errors -Wextra -DNDEBUG)
 
 FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 IF (Boost_FOUND)
@@ -26,3 +26,4 @@ add_subdirectory(external)
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC quetzal sqlite3pp ${GDAL_LIBRARY}  ${SQLite3_LIBRARIES} ${Boost_LIBRARIES})
+target_compile_options(${PROJECT_NAME} PRIVATE -O3)
