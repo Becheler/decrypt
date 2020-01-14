@@ -1,5 +1,5 @@
 landscape=decrypt/example/australia_precipitation_6032.tif
-n_sim_gen=30
+n_sim_gen=5
 n_loci=5
 lat_0=-20.0
 lon_0=125.0
