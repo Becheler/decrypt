@@ -16,7 +16,7 @@
                    (Pop1,Pop2);
   diploid = 0  0                 * 0: phased sequences, 1: unphased diploid sequences
   usedata = 1                    * 0: no data (prior); 1:seq like
-  nloci = 10                      * number of data sets in seqfile
+  nloci = 5                      * number of data sets in seqfile
 
   cleandata = 1                  * remove sites with ambiguity data (1:yes, 0:no)?
 
