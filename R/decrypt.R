@@ -54,7 +54,7 @@ interpolate_posterior_probability <- function(data, mask, x0, proj4string){
   blues <- colorRampPalette(c('orange', 'blue'))
   pols <- list("sp.polygons", CA, fill = "lightgray")
   spplot(obj=spdf, zcol='p2', cuts=cuts, col.regions=blues(2), sp.layout=pols, pch=20, cex=2)
-  
+
   TA <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0 ")
   dta <- spTransform(spdf, TA)
   cata <- spTransform(CA, TA)
@@ -62,7 +62,7 @@ interpolate_posterior_probability <- function(data, mask, x0, proj4string){
   v <- voronoi(dta)
   ca <- aggregate(cata)
   vca <- intersect(v, ca)
-  r <- raster(cata, res=res(model))
+  r <- raster(cata, res=res(mask))
   vr <- rasterize(vca, r, 'p2')
 
   ## [inverse distance weighted interpolation]
@@ -72,4 +72,3 @@ interpolate_posterior_probability <- function(data, mask, x0, proj4string){
   plot(1 - idwr)
   points(x0, pch="+", col= "red")
 }
-
