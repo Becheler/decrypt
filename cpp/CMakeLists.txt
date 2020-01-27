@@ -25,5 +25,5 @@ enable_testing()
 add_subdirectory(external)
 
 add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} LINK_PUBLIC quetzal sqlite3pp ${GDAL_LIBRARY}  ${SQLite3_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} LINK_PUBLIC sqlite3pp ${GDAL_LIBRARY}  ${SQLite3_LIBRARIES} ${Boost_LIBRARIES})
 INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
