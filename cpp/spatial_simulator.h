@@ -3,9 +3,6 @@
 #include <boost/math/special_functions/binomial.hpp>
 #include <boost/progress.hpp>
 
-#include <sqlite3.h>
-#include "sqlite3pp.h"
-
 #include <random>
 #include <algorithm>
 #include <cassert>
@@ -315,32 +312,14 @@ public:
         imap.append(std::to_string(it.id()) + "\t" + it.pop() + "\n");
       }
 
-      if(vm.count("database")){
-        try{
-          std::string file = vm["database"].as<std::string>();
-          sqlite3pp::database db(file.c_str());
-          sqlite3pp::command cmd(db, "CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, genealogies TEXT, imap TEXT, lat REAL, lon REAL)");
-          cmd.execute();
 
-          sqlite3pp::command cmd2(db, "INSERT INTO results (genealogies, imap, lat, lon) VALUES (?,?,?,?)");
-          cmd2.binder()<< genealogies
-                       << imap
-                       << std::to_string(x_2.lat())
-                       << std::to_string(x_2.lon());
-          cmd2.execute();
-          ++show_progress;
-        }
-        catch(const std::exception& e){
-          std::cout << e.what() << std::endl;
-        }
-      }else{
-        std::cout    << "--- Genealogies in Newick format:\n\n"
-                     << genealogies << "\n\n"
-                     << "--- Mapping:\n\n"
-                     << imap << "\n\n"
-                     << "--- Coordinates of the center of the variable sampling area:\t"
-                     << x_2 << "\n\n" << std::endl;
-      }
+      std::cout    << "--- Genealogies in Newick format:\n\n"
+                   << genealogies << "\n\n"
+                   << "--- Mapping:\n\n"
+                   << imap << "\n\n"
+                   << "--- Coordinates of the center of the variable sampling area:\t"
+                   << x_2 << "\n\n" << std::endl;
+                   
     } // n_sim_gen
     return simulator;
   }
