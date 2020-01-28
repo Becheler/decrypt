@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.12)
 project(spatial_process)
 
 set(CMAKE_CXX_STANDARD 17)
-#add_compile_options(-O3 -Wall -pedantic-errors -Wextra -DNDEBUG)
 
 FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 IF (Boost_FOUND)
