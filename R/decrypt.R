@@ -1,14 +1,18 @@
-library("raster")
-require(lattice)
-require(viridis)
 
-library("devtools")
-if (!require("rspatial")) devtools::install_github('rspatial/rspatial')
-library("rspatial")
-library(sp)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(raster, lattice, viridis, rspatial, sp, dismo, gstat)
 
-library(dismo)
-library(gstat)
+# library("raster")
+# require(lattice)
+# require(viridis)
+#
+# library("devtools")
+# if (!require("rspatial")) devtools::install_github('rspatial/rspatial')
+# library("rspatial")
+# library(sp)
+#
+# library(dismo)
+# library(gstat)
 
 plot_sampling_scheme <- function(mask, x0, r0, x, r, proj4string){
   pls <- dismo:::.generateCircles(x, d=2*r, lonlat=TRUE, crs=proj4string)

@@ -16,4 +16,9 @@ ENDIF()
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ${GDAL_LIBRARY} ${Boost_LIBRARIES})
-INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
+#INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
+#INSTALL(TARGETS
+#INSTALL(TARGETS # Creates a folder called "executables" and adds target
+# project (helloWorld.vcproj) under it
+
+INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
