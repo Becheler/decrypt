@@ -14,8 +14,15 @@ IF (GDAL_FOUND)
     INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
 ENDIF()
 
+find_package (SQLite3)
+IF (SQLite3_FOUND)
+    INCLUDE_DIRECTORIES(${SQLite3_INCLUDE_DIRS})
+ENDIF()
+
+include_directories(headeronly_src include)
+
 add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ${GDAL_LIBRARY} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ${SQLite3_LIBRARIES} ${GDAL_LIBRARY} ${Boost_LIBRARIES})
 #INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
 #INSTALL(TARGETS
 #INSTALL(TARGETS # Creates a folder called "executables" and adds target
