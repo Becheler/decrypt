@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(spatial_process)
+project(decrypt)
 
 set(CMAKE_CXX_STANDARD 17)
-#add_compile_options(-O3 -Wall -pedantic-errors -Wextra -DNDEBUG)
 
 FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 IF (Boost_FOUND)
@@ -15,15 +14,18 @@ IF (GDAL_FOUND)
     INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
 ENDIF()
 
-FIND_PACKAGE(SQLite3)
+find_package (SQLite3)
 IF (SQLite3_FOUND)
     INCLUDE_DIRECTORIES(${SQLite3_INCLUDE_DIRS})
 ENDIF()
 
-enable_testing()
+include_directories(headeronly_src include)
 
-add_subdirectory(external)
+add_executable(spatial_process1 main.cpp)
+target_link_libraries(spatial_process1 LINK_PUBLIC ${SQLite3_LIBRARIES} ${GDAL_LIBRARY} ${Boost_LIBRARIES})
+#INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
+#INSTALL(TARGETS
+#INSTALL(TARGETS # Creates a folder called "executables" and adds target
+# project (helloWorld.vcproj) under it
 
-add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} LINK_PUBLIC quetzal sqlite3pp ${GDAL_LIBRARY}  ${SQLite3_LIBRARIES} ${Boost_LIBRARIES})
-INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/assets)
+INSTALL(TARGETS spatial_process1 DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})

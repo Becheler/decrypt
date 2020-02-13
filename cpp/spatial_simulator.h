@@ -1,9 +1,8 @@
-#include <include/quetzal.h>
+#include "include/quetzal.h"
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/binomial.hpp>
 #include <boost/progress.hpp>
 
-#include <sqlite3.h>
 #include "sqlite3pp.h"
 
 #include <random>
@@ -315,6 +314,7 @@ public:
         imap.append(std::to_string(it.id()) + "\t" + it.pop() + "\n");
       }
 
+
       if(vm.count("database")){
         try{
           std::string file = vm["database"].as<std::string>();
@@ -343,5 +343,6 @@ public:
       }
     } // n_sim_gen
     return simulator;
+
   }
 };
