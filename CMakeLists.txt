@@ -16,4 +16,4 @@ enable_testing()
 add_subdirectory(cpp)
 add_subdirectory(python)
 
-INSTALL(DIRECTORY python/ R/ example DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
+INSTALL(DIRECTORY R/ example DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
