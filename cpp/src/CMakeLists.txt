@@ -11,10 +11,7 @@ IF (GDAL_FOUND)
     INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
 ENDIF()
 
-find_package (SQLite3)
-IF (SQLite3_FOUND)
-    INCLUDE_DIRECTORIES(${SQLite3_INCLUDE_DIRS})
-ENDIF()
+find_package (SQLite3 CONFIG QUIET)
 
 include_directories(headeronly_src include)
 

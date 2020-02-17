@@ -20,6 +20,7 @@ ExternalProject_Add(
   ${PROJECT_NAME}_core
   DEPENDS
     boost_external
+    sqlite3_external
   SOURCE_DIR
     ${CMAKE_CURRENT_LIST_DIR}/src
   CMAKE_ARGS
