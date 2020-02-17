@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
-find_package(SQLite3 CONFIG QUIET)
+find_package(SQLite3 QUIET)
 
 if(SQLite3_FOUND)
-  get_property(_loc TARGET SQLite3::sqlite3 PROPERTY LOCATION)
-  message(STATUS "Found SQLite3: ${_loc} (found version ${SQLite3_VERSION})")
+  message(STATUS "Found SQLite3: version ${SQLite3_VERSION}")
   add_library(sqlite3_external INTERFACE)  # dummy
 else()
   message(STATUS "Suitable SQLite3 could not be located. Downloading and building")
@@ -31,5 +30,21 @@ else()
       BUILD_IN_SOURCE   1
       INSTALL_COMMAND   ""
     )
+    #
+    # set(
+    #   SQLite3_ROOT ${STAGED_INSTALL_PREFIX}/sqlite3
+    #   CACHE PATH "Path to internally built SQLite3 installation root"
+    #   FORCE
+    #   )
+    # set(
+    #   SQLite3_INCLUDEDIR ${SQLite3_ROOT}/include
+    #   CACHE PATH "Path to internally built SQLite3 include directories"
+    #   FORCE
+    #   )
+    # set(
+    #   SQLite3_LIBRARYDIR ${SQLite3_ROOT}/lib
+    #   CACHE PATH "Path to internally built SQL3te2 library directories"
+    #   FORCE
+    #   )
 
 endif()
