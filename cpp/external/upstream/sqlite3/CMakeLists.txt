@@ -6,7 +6,7 @@ if(SQLite3_FOUND)
   message(STATUS "Found SQLite3: version ${SQLite3_VERSION}")
   add_library(sqlite3_external INTERFACE)  # dummy
 else()
-  message(STATUS "SQLite3 could not be located, downloading and building instead.")
+  message(STATUS "SQLite3 could not be located, downloading and building version 3.31.1 instead.")
 
   # Add CMake project file
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/temp)
