@@ -86,5 +86,7 @@ chmod u+x decrypt/bin/model_2
 ./decrypt/bin/model_2 --config decrypt/example/config_1.ctl --landscape decrypt/example/australia_precipitation_6032.tif
 
 chmod +x decrypt/animate.R
-./animate.R output/N.tif 100 
+./animate.R output/N.tif 100
 ```
+
+Animation will require R with the packages raster, sp and viridis installed. Also requires GraphicsMagick.
