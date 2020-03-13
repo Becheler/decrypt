@@ -14,14 +14,16 @@ include_directories(headeronly_src include)
 
 add_executable(model_1 model_1.cpp)
 add_executable(model_2 model_2.cpp)
+add_executable(model_3 model_3.cpp)
 
 target_link_libraries(model_1 LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL ${Boost_LIBRARIES})
 target_link_libraries(model_2 LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL ${Boost_LIBRARIES})
+target_link_libraries(model_3 LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL ${Boost_LIBRARIES})
 
 # INSTALL(TARGETS spatial_process1 DESTINATION ${STAGED_INSTALL_PREFIX}/${PROJECT_NAME})
 install(
   TARGETS
-    model_1 model_2
+    model_1 model_2 model_3
   RUNTIME
     DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT bin

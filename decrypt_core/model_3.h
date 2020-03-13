@@ -28,12 +28,12 @@ auto handle_options(int argc, char* argv[]){
     bpo::options_description generalOptions{"General"};
     generalOptions.add_options()
     ("help,h", "Help screen")
-    ("config", bpo::value<std::string>(), "Config file");
+    ("config", bpo::value<std::string>(), "Config file")
+    ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format");
 
     bpo::options_description fileOptions{"File"};
     fileOptions.add_options()
     ("help", "produce help message")
-    ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format")
     ("n_sim_gen", bpo::value<unsigned int>()->required(), "Number of genetic simulations")
     ("n_loci", bpo::value<unsigned int>()->required(), "Number of loci to simulate")
     ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
