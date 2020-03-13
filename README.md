@@ -75,10 +75,16 @@ sandbox/
 
 ### 4 - Tests
 
+In sandbox directory:
 ```
+mkdir output
+
 chmod u+x decrypt/bin/model_1
 ./decrypt/bin/model_1 --config decrypt/example/config_1.ctl --landscape decrypt/example/australia_precipitation_6032.tif
 
 chmod u+x decrypt/bin/model_2
 ./decrypt/bin/model_2 --config decrypt/example/config_1.ctl --landscape decrypt/example/australia_precipitation_6032.tif
+
+chmod +x decrypt/animate.R
+./animate.R output/N.tif 100 
 ```
