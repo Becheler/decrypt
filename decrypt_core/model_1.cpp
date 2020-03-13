@@ -10,12 +10,13 @@
 
 int main(int argc, char* argv[])
 {
-
+  std::cout << "Reading options" << std::endl;
   auto vm = handle_options(argc, argv);
   if (vm.count("help")) {
       return 1;
   }
   try{
+    std::cout << "Simulation" << std::endl;
     auto result = SimulationContext::run(vm);
   }
   catch(const std::exception& e){
