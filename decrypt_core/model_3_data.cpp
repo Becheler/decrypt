@@ -6,7 +6,7 @@
 //
 //
 //
-#include "spatial_simulator.h"
+#include "model_3_data.h"
 
 int main(int argc, char* argv[])
 {
