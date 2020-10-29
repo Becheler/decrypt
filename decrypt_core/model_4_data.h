@@ -209,17 +209,17 @@ public:
     unsigned int K_max = vm["K_max"].as<unsigned int>();
     double p_K = vm["p_K"].as<double>();
 
-    // auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type){
-    //   if( suitability(x,0) == 0){ //ocean cell
-    //     return std::bernoulli_distribution(p_K)(gen) ? K_max : K_min;
-    //   }else{
-    //     return K_suit;
-    //   }
-    // };
-
     auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type){
-      return K_suit;
+      if( suitability(x,0) == 0){ //ocean cell
+        return std::bernoulli_distribution(p_K)(gen) ? K_max : K_min;
+      }else{
+        return K_suit;
+      }
     };
+
+    // auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type){
+    //   return K_suit;
+    // };
 
     auto r = lit( vm["r"].as<double>() );
 
@@ -237,14 +237,14 @@ public:
     * Dispersal
     ******************/
 
-    // auto friction = [&suitability](coord_type const& x){
-    //   if(suitability(x,0) <= 0.1) {std::cout << "sea"<<std::endl;return 0.9;} //ocean cell
-    //   else return 1 - suitability(x, 0);
-    // };
-
-    auto friction = [suitability](coord_type const& x){
-      return 0.5;
+    auto friction = [&suitability](coord_type const& x){
+      if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
+      else return 1 - suitability(x, 0);
     };
+
+    // auto friction = [suitability](coord_type const& x){
+    //   return 0.5;
+    // };
 
     double emigrant_rate = vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(env);
