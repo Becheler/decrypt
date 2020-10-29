@@ -137,7 +137,7 @@ auto make_neighboring_cells_functor(T const& landscape){
     }
 
     coord_type x3(x0);
-    x3.lat() -= res.lat();
+    x3.lon() -= res.lon();
     if(landscape.get().is_in_spatial_extent(x3)){
       v.push_back(landscape.get().reproject_to_centroid(x3));
     }
