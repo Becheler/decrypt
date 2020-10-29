@@ -32,10 +32,13 @@ target_link_libraries(model_1_data LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL $
 add_executable(model_3_data model_3_data.cpp)
 target_link_libraries(model_3_data LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL ${Boost_LIBRARIES})
 
+add_executable(model_4_data model_4_data.cpp)
+target_link_libraries(model_4_data LINK_PUBLIC ${SQLite3_LIBRARIES} GDAL::GDAL ${Boost_LIBRARIES})
+
 # INSTALL(TARGETS spatial_process1 DESTINATION ${STAGED_INSTALL_PREFIX}/${PROJECT_NAME})
 install(
   TARGETS
-    model_1 model_2 model_3 model_1_data model_3_data
+    model_1 model_2 model_3 model_1_data model_3_data model_4_data
   RUNTIME
     DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT bin
