@@ -9,8 +9,8 @@
 *                                                                      *
 ************************************************************************/
 
-#ifndef __M3_REALITY_CHECK_H_INCLUDED__
-#define __M3_REALITY_CHECK_H_INCLUDED__
+#ifndef __M4_REALITY_CHECK_H_INCLUDED__
+#define __M4_REALITY_CHECK_H_INCLUDED__
 
 #include "include/quetzal.h"
 
@@ -57,7 +57,10 @@ auto handle_options(int argc, char* argv[]){
     ("lat_0", bpo::value<double>()->required(), "Introduction point latitude")
     ("N_0", bpo::value<unsigned int>()->required(), "Number of gene copies at introduction point")
     ("duration", bpo::value<unsigned int>()->required(), "Number of generations to simulate")
-    ("K", bpo::value<unsigned int>()->required(), "Carrying capacity")
+    ("K_suit", bpo::value<unsigned int>()->required(), "Carrying capacity in suitable areas")
+    ("K_max", bpo::value<unsigned int>()->required(), "Highest carrying capacity in areas with null suitability")
+    ("K_min", bpo::value<unsigned int>()->required(), "Lowest carrying capacity in areas with null suitability")
+    ("p_K", bpo::value<double>()->required(), "Probability to have highest carrying capacity in areas with 0 suitability")
     ("r", bpo::value<double>()->required(), "Growth rate")
     ("emigrant_rate", bpo::value<double>()->required(), "Emigrant rate between the four neighboring cells")
     ("demography_out",  bpo::value<std::string>(), "File name for the simulated demography output")
@@ -112,6 +115,43 @@ public:
  */
 unsigned int Ind::m_next_available_id = 0;
 
+template<typename T>
+auto make_neighboring_cells_functor(T const& landscape){
+
+  using coord_type = geo::GeographicCoordinates;
+  return [landscape](coord_type const& x0){
+    auto res = landscape.get().resolution();
+
+    std::vector<coord_type> v;
+
+    coord_type x1(x0);
+    x1.lon() += res.lon();
+    if(landscape.get().is_in_spatial_extent(x1)){
+      v.push_back(landscape.get().reproject_to_centroid(x1));
+    }
+
+    coord_type x2(x0);
+    x2.lat() += res.lat();
+    if(landscape.get().is_in_spatial_extent(x2)){
+      v.push_back(landscape.get().reproject_to_centroid(x2));
+    }
+
+    coord_type x3(x0);
+    x3.lon() -= res.lon();
+    if(landscape.get().is_in_spatial_extent(x3)){
+      v.push_back(landscape.get().reproject_to_centroid(x3));
+    }
+
+    coord_type x4(x0);
+    x4.lat() -= res.lat() ;
+    if(landscape.get().is_in_spatial_extent(x4)){
+      v.push_back(landscape.get().reproject_to_centroid(x4));
+    }
+    return v;
+  };
+};
+
+
 class SimulationContext{
 public:
   static auto run(bpo::variables_map const& vm)
@@ -123,7 +163,7 @@ public:
     using landscape_type = quetzal::geography::DiscreteLandscape<std::string,time_type>;
     using coord_type = landscape_type::coord_type;
     const std::string file = vm["landscape"].as<std::string>();
-    landscape_type env( {{"friction", file}}, {time_type(0)} );
+    landscape_type env( {{"suitability", file}}, {time_type(0)} );
     std::cout << "Landscape initialized" << std::endl;
 
     /******************************
@@ -162,7 +202,25 @@ public:
     using quetzal::expressive::use;
     literal_factory<coord_type, time_type> lit;
 
-    auto K = lit( vm["K"].as<unsigned int>() );
+    auto suitability = env["suitability"];
+
+    unsigned int K_suit = vm["K_suit"].as<unsigned int>();
+    unsigned int K_min = vm["K_min"].as<unsigned int>();
+    unsigned int K_max = vm["K_max"].as<unsigned int>();
+    double p_K = vm["p_K"].as<double>();
+
+    auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type){
+      if( suitability(x,0) == 0){ //ocean cell
+        return std::bernoulli_distribution(p_K)(gen) ? K_max : K_min;
+      }else{
+        return K_suit;
+      }
+    };
+
+    // auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type){
+    //   return K_suit;
+    // };
+
     auto r = lit( vm["r"].as<double>() );
 
     // Retrieve population size reference to define a logistic growth process
@@ -178,13 +236,23 @@ public:
     /******************
     * Dispersal
     ******************/
-    auto f = env["friction"];
-    auto friction = [f](coord_type x){return f(x, 0);};
+
+    auto friction = [&suitability](coord_type const& x){
+      if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
+      else return 1 - suitability(x, 0);
+    };
+
+    // auto friction = [suitability](coord_type const& x){
+    //   return 0.5;
+    // };
+
     double emigrant_rate = vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(env);
-    auto get_neighbors = [env_ref](coord_type const& x){return env_ref.get().four_nearest_defined_cells(x);};
+    // try 4 directions and give them if value is in spatial extent
+    auto get_neighbors = make_neighboring_cells_functor(env_ref);
+    // auto get_neighbors = [env_ref](coord_type const& x){return env_ref.get().four_nearest_defined_cells(x);};
     auto const& space = env.geographic_definition_space();
-    auto dispersal = demographic_policy::make_neighboring_migration(space, emigrant_rate, friction, get_neighbors);
+    auto dispersal = demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
 
     auto distance = [](coord_type const& a, coord_type const& b) -> double {return memoized_great_circle_distance(a,b);};
     std::cout << "Dispersal initialized" << std::endl;
