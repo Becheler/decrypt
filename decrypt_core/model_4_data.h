@@ -113,13 +113,23 @@ public:
   }
 private:
   sqlite3pp::database m_database;
+
   void create_results_table()
   {
-    sqlite3pp::command
-    cmd(
+    sqlite3pp::command cmd(
       this->m_database,
       "CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, newicks TEXT)"
     );
+    cmd.execute();
+  }
+
+  void insert_results(std::string const& newicks)
+  {
+    sqlite3pp::command cmd(
+      this->m_database,
+      "INSERT INTO results (newicks) VALUES (?)"
+    );
+    cmd.binder() << newicks;
     cmd.execute();
   }
 };
@@ -138,11 +148,11 @@ public:
     build_sample(vm);
     show_reprojected_sample();
     build_simulation_core(vm);
-    build_reproduction_function(vm);
+    build_reproduction_function(vm, gen);
     build_dispersal_kernel(vm);
     expand_demography(gen);
     maybe_save_demography(vm);
-    simulate_coalescence();
+    simulate_coalescence(vm, gen);
     save_genealogies();
   }
 private:
@@ -165,9 +175,11 @@ private:
   landscape_type m_landscape;
   sample_type m_sample;
   core_type m_core;
-  std::function<unsigned int(coord_type, time_type)> m_reproduction_expr;
+  std::function<unsigned int(std::mt19937&, coord_type, time_type)> m_reproduction_expr;
+  time_type m_t_0;
   time_type m_sample_time;
   dispersal_type m_dispersal_kernel;
+  std::string newicks;
 
   void build_database(bpo::variables_map const& vm)
   {
@@ -205,32 +217,32 @@ private:
     std::string datafile = vm["sample"].as<std::string>();
     quetzal::genetics::Loader<coord_type, quetzal::genetics::microsatellite> reader;
     auto m_sample = reader.read(datafile);
-    m_sample.reproject(env);
+    m_sample.reproject(m_landscape);
   }
 
   void show_reprojected_sample()
   {
-    std::cout << "Reprojected sample:\n\n" << dataset << std::endl;
+    std::cout << "Reprojected sample:\n\n" << m_sample << std::endl;
   }
 
   void build_simulation_core(bpo::variables_map const& vm)
   {
     coord_type x_0(vm["lat_0"].as<double>(), vm["lon_0"].as<double>());
     x_0 = m_landscape.reproject_to_centroid(x_0);
-    time_type t_0 = 0;
+    m_t_0 = 0;
     m_sample_time = vm["duration"].as<unsigned int>();
     unsigned int N_0 = vm["N_0"].as<unsigned int>();
-    m_core = core_type(x_0, t_0, N_0);
+    m_core = core_type(x_0, m_t_0, N_0);
   }
 
-  void build_reproduction_function(bpo::variables_map const& vm)
+  void build_reproduction_function(bpo::variables_map const& vm, std::mt19937 & gen)
   {
     using expr::literal_factory;
     using expr::use;
 
     // growth rate
     literal_factory<coord_type, time_type> lit;
-    m_r = lit( vm["r"].as<double>() );
+    auto r = lit( vm["r"].as<double>() );
 
     // carrying capacity
     auto suitability = m_landscape["suitability"];
@@ -257,7 +269,7 @@ private:
       return poisson(gen);
     };
     // store as member
-    m_reproduction = reproduction;
+    m_reproduction_expr = reproduction;
   }
 
   void build_dispersal_kernel(bpo::variables_map const& vm)
@@ -269,13 +281,13 @@ private:
     };
     double emigrant_rate = vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(m_landscape);
-    std::function<std::vector<coord_type>(coord_type)> get_neighbors = make_neighboring_cells_functor(env_ref);
+    std::function<std::vector<coord_type>(coord_type)> get_neighbors = decrypt::utils::make_neighboring_cells_functor(env_ref);
     m_dispersal_kernel = demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
   }
 
   void expand_demography(std::mt19937 & gen)
   {
-    simulator.expand_demography(m_sample_time, m_reproduction, m_dispersal_kernel, gen);
+    m_core.expand_demography(m_sample_time, m_reproduction_expr, m_dispersal_kernel, gen);
   }
 
   void maybe_save_demography(bpo::variables_map const& vm)
@@ -287,9 +299,13 @@ private:
         std::string filename = vm["demography_out"].as<std::string>();
         if(std::filesystem::exists(filename))
         {
-          throw(std::runtime_error("Unable to save demography: file " +filename+ " already exists."))
+          std::string message("Unable to save demography: file " +filename+ " already exists.");
+          throw(std::runtime_error(message));
         }
-        env.export_to_geotiff(N, t_0, sample_time, [&pop_sizes](time_type const& t){return pop_sizes.get().definition_space(t);}, filename);
+        using expr::use;
+        auto pop_sizes = m_core.pop_size_history();
+        auto N = use( [pop_sizes](coord_type x, time_type t){ return pop_sizes(x,t);} );
+        m_landscape.export_to_geotiff(N, m_t_0, m_sample_time, [&pop_sizes](time_type const& t){return pop_sizes.get().definition_space(t);}, filename);
       }
       catch(const std::exception& e)
       {
@@ -298,10 +314,11 @@ private:
     }
   }
 
-  void simulate_coalescence(bpo::variables_map const& vm)
+  void simulate_coalescence(bpo::variables_map const& vm, std::mt19937 & gen)
   {
-    std::vector<Ind> v;
-    for(auto const& it1 : dataset.get_sampling_points())
+    using decrypt::utils::GeneCopy;
+    std::vector<GeneCopy> v;
+    for(auto const& it1 : m_sample.get_sampling_points())
     {
       for(unsigned int i = 0; i < dataset.individuals_at(it1).size(); ++ i)
       {// TODO here for diploidi and names
@@ -314,25 +331,17 @@ private:
     unsigned int n_loci = vm["n_loci"].as<unsigned int>();
     for(unsigned int locus = 0; locus < n_loci ; ++locus)
     {
-      genealogies.append(m_core.coalesce_to_mrca<>(v, sample_time, get_position, get_name, gen));
+      genealogies.append(m_core.coalesce_to_mrca<>(v, m_sample_time, get_position, get_name, gen));
       genealogies.append("\n\n");
     }
     genealogies.pop_back();
     genealogies.pop_back();
+    m_newicks = genealogies;
   }
 
-  void save_genealogies(bpo::variables_map const& vm)
+  void save_genealogies()
   {
-    try
-    {
-      sqlite3pp::command cmd2(db, "INSERT INTO results (genealogies) VALUES (?)");
-      cmd2.binder() << genealogies;
-      cmd2.execute();
-    }
-    catch(const std::exception& e)
-    {
-      std::cout << e.what() << std::endl;
-    }
+
   }
 };
 
