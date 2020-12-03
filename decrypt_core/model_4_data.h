@@ -29,6 +29,7 @@
 #include <sstream>
 #include <iostream>
 #include <filesystem>
+#include <functional>
 
 namespace coal = quetzal::coalescence;
 namespace geo = quetzal::geography;
@@ -126,7 +127,7 @@ private:
 class SimulationContext
 {
 public:
-  static void run(bpo::variables_map const& vm)
+  void run(bpo::variables_map const& vm)
   {
     // TODO: ensure reproducibility by setting seed
     std::random_device rd;
@@ -137,11 +138,9 @@ public:
     build_sample(vm);
     show_reprojected_sample();
     build_simulation_core(vm);
-    build_growth_rate_function(vm);
-    build_carrying_capacity_function(vm);
     build_reproduction_function(vm);
     build_dispersal_kernel(vm);
-    expand_demography();
+    expand_demography(gen);
     maybe_save_demography(vm);
     simulate_coalescence();
     save_genealogies();
@@ -156,17 +155,19 @@ private:
   using coal_policy = coal::policies::distance_to_parent_leaf_name<coord_type, time_type>;
   using core_type = sim::SpatiallyExplicit<coord_type, time_type, demographic_policy, coal_policy>;
   using options_type = bpo::variables_map;
-  // TODO via dcltype ?
-  using r_expr_type = expr::literal_factory<coord_type, time_type>operator()<double>
+
+  template<typename... Ts>
+  using TestType = auto(Ts...) -> decltype(demographic_policy::make_light_neighboring_migration(std::declval<Ts>()...));
+
+  using dispersal_type = TestType<coord_type, double, std::function<double(coord_type)>, std::function<std::vector<coord_type>(coord_type)>>;
 
   database_type m_database;
   landscape_type m_landscape;
   sample_type m_sample;
   core_type m_core;
-  r_expr_type m_r;
-  K_expr_type m_K;
-  reproduction_expr_type m_reproduction;
+  std::function<unsigned int(coord_type, time_type)> m_reproduction_expr;
   time_type m_sample_time;
+  dispersal_type m_dispersal_kernel;
 
   void build_database(bpo::variables_map const& vm)
   {
@@ -222,24 +223,21 @@ private:
     m_core = core_type(x_0, t_0, N_0);
   }
 
-  void build_growth_rate_expression(bpo::variables_map const& vm)
+  void build_reproduction_function(bpo::variables_map const& vm)
   {
     using expr::literal_factory;
     using expr::use;
+
+    // growth rate
     literal_factory<coord_type, time_type> lit;
     m_r = lit( vm["r"].as<double>() );
-  }
 
-  void build_carrying_capacity_expression(bpo::variables_map const& vm)
-  {
-    using expr::literal_factory;
-    using expr::use;
+    // carrying capacity
     auto suitability = m_landscape["suitability"];
     unsigned int K_suit = vm["K_suit"].as<unsigned int>();
     unsigned int K_min = vm["K_min"].as<unsigned int>();
     unsigned int K_max = vm["K_max"].as<unsigned int>();
     double p_K = vm["p_K"].as<double>();
-
     auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type)
     {
       if( suitability(x,0) == 0)
@@ -249,41 +247,35 @@ private:
         return K_suit;
       }
     };
-    m_K = K;
-  }
 
-  void build_reproduction_function(bpo::variables_map const& vm)
-  {
-    using expr::literal_factory;
-    using expr::use;
     // Retrieve population size reference to define a logistic growth process
     auto pop_sizes = m_core.pop_size_history();
     auto N = use( [pop_sizes](coord_type x, time_type t){ return pop_sizes(x,t);} );
-    auto g = N * ( lit(1) + m_r ) / ( lit(1) + ( (m_r * N)/m_K ));
+    auto g = N * ( lit(1) + r ) / ( lit(1) + ( (r * N)/K ));
     auto reproduction = [g](auto& gen, coord_type const&x, time_type t){
       std::poisson_distribution<unsigned int> poisson(g(x,t));
       return poisson(gen);
     };
+    // store as member
     m_reproduction = reproduction;
   }
 
   void build_dispersal_kernel(bpo::variables_map const& vm)
   {
     auto suitability = m_landscape["suitability"];
-    auto friction = [&suitability](coord_type const& x){
+    std::function<double(coord_type)> friction = [&suitability](coord_type const& x){
       if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
       else return 1 - suitability(x, 0);
     };
     double emigrant_rate = vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(m_landscape);
-    auto get_neighbors = make_neighboring_cells_functor(env_ref);
-    auto const& space = m_landscape.geographic_definition_space();
-    auto dispersal = demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
+    std::function<std::vector<coord_type>(coord_type)> get_neighbors = make_neighboring_cells_functor(env_ref);
+    m_dispersal_kernel = demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
   }
 
-  void expand_demography(bpo::variables_map const& vm)
+  void expand_demography(std::mt19937 & gen)
   {
-    simulator.expand_demography(m_sample_time, sim_children, dispersal, gen);
+    simulator.expand_demography(m_sample_time, m_reproduction, m_dispersal_kernel, gen);
   }
 
   void maybe_save_demography(bpo::variables_map const& vm)

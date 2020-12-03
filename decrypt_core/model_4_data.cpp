@@ -16,7 +16,8 @@ int main(int argc, char* argv[])
       return 1;
   }
   try{
-    SimulationContext::run(vm);
+    SimulationContext s;
+    s.run(vm);
   }
   catch(const std::exception& e){
     std::cout << e.what() << std::endl;
