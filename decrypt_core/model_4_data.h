@@ -28,6 +28,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <filesystem>
 
 namespace coal = quetzal::coalescence;
 namespace geo = quetzal::geography;
@@ -92,7 +93,7 @@ auto handle_options(int argc, char* argv[])
 } // end of handle_options
 
 //Initialization of the first ID
-unsigned int GeneCopy::m_next_available_id = 0;
+unsigned int decrypt::utils::GeneCopy::m_next_available_id = 0;
 
 //Class for wrapping sqlite3pp code
 class database_type
@@ -101,14 +102,13 @@ public:
   static auto already_exists(std::string const& filename)
   {
     std::string message = "Unable to create database: file " + filename +
-    " already exists.\nRemove existing file or change
-    the database name in the configuration file.";
+    " already exists.\nRemove existing file or change the database name in the configuration file.";
     return std::runtime_error(message);
   }
-  database_type::database_type(std::string const& filename){
+  database_type(std::string const& filename){
     if(std::filesystem::exists(filename)) throw(already_exists(filename));
     this->m_database = sqlite3pp::database(filename.c_str());
-    this->m_database.create_results_table();
+    create_results_table();
   }
 private:
   sqlite3pp::database m_database;
@@ -150,16 +150,14 @@ private:
   using time_type = int;
   using landscape_type = geo::DiscreteLandscape<std::string,time_type>;
   using coord_type = landscape_type::coord_type;
-  using loader_type = genet::Loader<coord_type, quetzal::genetics::microsatellite>
-  using sample_type = Loader_type::return_type;
+  using loader_type = genet::Loader<coord_type, quetzal::genetics::microsatellite>;
+  using sample_type = loader_type::return_type;
   using demographic_policy = demography::strategy::mass_based;
   using coal_policy = coal::policies::distance_to_parent_leaf_name<coord_type, time_type>;
-  using core_type = sim::SpatiallyExplicit<coord_type, time_type, demographic_policy, coalescence_policy>;
-  using expr::literal_factory;
-  using expr::use;
+  using core_type = sim::SpatiallyExplicit<coord_type, time_type, demographic_policy, coal_policy>;
   using options_type = bpo::variables_map;
   // TODO via dcltype ?
-  using r_expr_type = literal_factory<coord_type, time_type>operator()<double>
+  using r_expr_type = expr::literal_factory<coord_type, time_type>operator()<double>
 
   database_type m_database;
   landscape_type m_landscape;
@@ -226,12 +224,16 @@ private:
 
   void build_growth_rate_expression(bpo::variables_map const& vm)
   {
+    using expr::literal_factory;
+    using expr::use;
     literal_factory<coord_type, time_type> lit;
     m_r = lit( vm["r"].as<double>() );
   }
 
   void build_carrying_capacity_expression(bpo::variables_map const& vm)
   {
+    using expr::literal_factory;
+    using expr::use;
     auto suitability = m_landscape["suitability"];
     unsigned int K_suit = vm["K_suit"].as<unsigned int>();
     unsigned int K_min = vm["K_min"].as<unsigned int>();
@@ -252,6 +254,8 @@ private:
 
   void build_reproduction_function(bpo::variables_map const& vm)
   {
+    using expr::literal_factory;
+    using expr::use;
     // Retrieve population size reference to define a logistic growth process
     auto pop_sizes = m_core.pop_size_history();
     auto N = use( [pop_sizes](coord_type x, time_type t){ return pop_sizes(x,t);} );
