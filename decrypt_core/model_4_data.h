@@ -111,6 +111,17 @@ public:
     this->m_database = sqlite3pp::database(filename.c_str());
     create_results_table();
   }
+
+  void insert_results(std::string const& newicks)
+  {
+    sqlite3pp::command cmd(
+      this->m_database,
+      "INSERT INTO results (newicks) VALUES (?)"
+    );
+    cmd.binder() << newicks;
+    cmd.execute();
+  }
+
 private:
   sqlite3pp::database m_database;
 
@@ -123,38 +134,31 @@ private:
     cmd.execute();
   }
 
-  void insert_results(std::string const& newicks)
-  {
-    sqlite3pp::command cmd(
-      this->m_database,
-      "INSERT INTO results (newicks) VALUES (?)"
-    );
-    cmd.binder() << newicks;
-    cmd.execute();
-  }
 };
 
 class SimulationContext
 {
 public:
-  void run(bpo::variables_map const& vm)
+  SimulationContext(bpo::variables_map const& opts, std::mt19937& gen):
+  vm(opts),
+  m_database(build_database()),
+  m_landscape(build_landscape()),
+  m_sample(build_sample()),
+  m_core(build_simulation_core()),
+  m_reproduction_expr(build_reproduction_function(gen)),
+  m_dispersal_kernel(build_dispersal_kernel())
   {
-    // TODO: ensure reproducibility by setting seed
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    build_database(vm);
-    build_landscape(vm);
-    build_sample(vm);
     show_reprojected_sample();
-    build_simulation_core(vm);
-    build_reproduction_function(vm, gen);
-    build_dispersal_kernel(vm);
+  };
+
+  void run(std::mt19937& gen)
+  {
     expand_demography(gen);
-    maybe_save_demography(vm);
-    simulate_coalescence(vm, gen);
+    maybe_save_demography();
+    simulate_coalescence(gen);
     save_genealogies();
   }
+
 private:
   using time_type = int;
   using landscape_type = geo::DiscreteLandscape<std::string,time_type>;
@@ -165,30 +169,33 @@ private:
   using coal_policy = coal::policies::distance_to_parent_leaf_name<coord_type, time_type>;
   using core_type = sim::SpatiallyExplicit<coord_type, time_type, demographic_policy, coal_policy>;
   using options_type = bpo::variables_map;
-
-  template<typename... Ts>
-  using TestType = auto(Ts...) -> decltype(demographic_policy::make_light_neighboring_migration(std::declval<Ts>()...));
-
-  using dispersal_type = TestType<coord_type, double, std::function<double(coord_type)>, std::function<std::vector<coord_type>(coord_type)>>;
-
+  // eww, but it works
+  using dispersal_type = demography::strategy::mass_based::light_neighboring_migration
+  <
+    coord_type,
+    std::function<double(coord_type)>,
+    std::function<std::vector<coord_type>(coord_type)>
+  >;
+  using reproduction_type = std::function<unsigned int(std::mt19937&, coord_type, time_type)>;
   database_type m_database;
   landscape_type m_landscape;
   sample_type m_sample;
   core_type m_core;
-  std::function<unsigned int(std::mt19937&, coord_type, time_type)> m_reproduction_expr;
+  reproduction_type m_reproduction_expr;
   time_type m_t_0;
   time_type m_sample_time;
   dispersal_type m_dispersal_kernel;
-  std::string newicks;
+  std::string m_newicks;
+  bpo::variables_map vm;
 
-  void build_database(bpo::variables_map const& vm)
+  database_type build_database()
   {
     if(vm.count("database"))
     {
       try
       {
         std::string filename = vm["database"].as<std::string>();
-        m_database = database_type(filename); // TODO pass that out of scope
+        return database_type(filename);
       }
       catch(const std::exception& e)
       {
@@ -198,12 +205,12 @@ private:
   }
 
   // TODO: pas sûr de la syntaxe du try/catch
-  void build_landscape(bpo::variables_map const& vm)
+  landscape_type build_landscape()
   {
     const std::string filename = vm["landscape"].as<std::string>();
     try
     {
-      m_landscape = landscape_type({{"suitability", filename}}, {time_type(0)});
+      return landscape_type({{"suitability", filename}}, {time_type(0)});
     }
     catch(const std::exception& e)
     {
@@ -212,12 +219,13 @@ private:
   }
 
   // TODO haploid versus diploid. Plus, format changed: ID/coordinates/no genetics
-  void build_sample(bpo::variables_map const& vm)
+  sample_type build_sample()
   {
     std::string datafile = vm["sample"].as<std::string>();
     quetzal::genetics::Loader<coord_type, quetzal::genetics::microsatellite> reader;
-    auto m_sample = reader.read(datafile);
-    m_sample.reproject(m_landscape);
+    auto sample = reader.read(datafile);
+    sample.reproject(m_landscape);
+    return sample;
   }
 
   void show_reprojected_sample()
@@ -225,17 +233,17 @@ private:
     std::cout << "Reprojected sample:\n\n" << m_sample << std::endl;
   }
 
-  void build_simulation_core(bpo::variables_map const& vm)
+  core_type build_simulation_core()
   {
     coord_type x_0(vm["lat_0"].as<double>(), vm["lon_0"].as<double>());
     x_0 = m_landscape.reproject_to_centroid(x_0);
     m_t_0 = 0;
     m_sample_time = vm["duration"].as<unsigned int>();
     unsigned int N_0 = vm["N_0"].as<unsigned int>();
-    m_core = core_type(x_0, m_t_0, N_0);
+    return core_type(x_0, m_t_0, N_0);
   }
 
-  void build_reproduction_function(bpo::variables_map const& vm, std::mt19937 & gen)
+  reproduction_type build_reproduction_function(std::mt19937 & gen)
   {
     using expr::literal_factory;
     using expr::use;
@@ -268,11 +276,10 @@ private:
       std::poisson_distribution<unsigned int> poisson(g(x,t));
       return poisson(gen);
     };
-    // store as member
-    m_reproduction_expr = reproduction;
+    return reproduction;
   }
 
-  void build_dispersal_kernel(bpo::variables_map const& vm)
+  dispersal_type build_dispersal_kernel()
   {
     auto suitability = m_landscape["suitability"];
     std::function<double(coord_type)> friction = [&suitability](coord_type const& x){
@@ -282,7 +289,7 @@ private:
     double emigrant_rate = vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(m_landscape);
     std::function<std::vector<coord_type>(coord_type)> get_neighbors = decrypt::utils::make_neighboring_cells_functor(env_ref);
-    m_dispersal_kernel = demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
+    return demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
   }
 
   void expand_demography(std::mt19937 & gen)
@@ -290,7 +297,7 @@ private:
     m_core.expand_demography(m_sample_time, m_reproduction_expr, m_dispersal_kernel, gen);
   }
 
-  void maybe_save_demography(bpo::variables_map const& vm)
+  void maybe_save_demography()
   {
     if(vm.count("demography_out"))
     {
@@ -314,13 +321,13 @@ private:
     }
   }
 
-  void simulate_coalescence(bpo::variables_map const& vm, std::mt19937 & gen)
+  void simulate_coalescence(std::mt19937 & gen)
   {
     using decrypt::utils::GeneCopy;
     std::vector<GeneCopy> v;
     for(auto const& it1 : m_sample.get_sampling_points())
     {
-      for(unsigned int i = 0; i < dataset.individuals_at(it1).size(); ++ i)
+      for(unsigned int i = 0; i < m_sample.individuals_at(it1).size(); ++ i)
       {// TODO here for diploidi and names
         v.emplace_back(it1);
       }
@@ -341,7 +348,7 @@ private:
 
   void save_genealogies()
   {
-
+    m_database.insert_results(m_newicks);
   }
 };
 

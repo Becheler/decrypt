@@ -490,7 +490,7 @@ namespace strategy {
 
     // TODO
     template<typename T, typename U, typename V>
-    static auto make_light_neighboring_migration(T, double emigrant_rate, U friction, V get_neighbors)
+    static light_neighboring_migration<T, U, V> make_light_neighboring_migration(T, double emigrant_rate, U friction, V get_neighbors)
     {
       return light_neighboring_migration<T, U, V>(emigrant_rate, friction, get_neighbors);
     }

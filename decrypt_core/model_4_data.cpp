@@ -16,8 +16,10 @@ int main(int argc, char* argv[])
       return 1;
   }
   try{
-    SimulationContext s;
-    s.run(vm);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    SimulationContext s(vm, gen);
+    s.run(gen);
   }
   catch(const std::exception& e){
     std::cout << e.what() << std::endl;
