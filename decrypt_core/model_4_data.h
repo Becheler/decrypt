@@ -14,6 +14,7 @@
 
 #include "include/quetzal.h"
 #include "utils.h"
+#include "rapidcsv.h"
 
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/binomial.hpp>
@@ -93,9 +94,6 @@ auto handle_options(int argc, char* argv[])
   return vm;
 } // end of handle_options
 
-//Initialization of the first ID
-unsigned int decrypt::utils::GeneCopy::m_next_available_id = 0;
-
 //Class for wrapping sqlite3pp code
 class database_type
 {
@@ -163,8 +161,7 @@ private:
   using time_type = int;
   using landscape_type = geo::DiscreteLandscape<std::string,time_type>;
   using coord_type = landscape_type::coord_type;
-  using loader_type = genet::Loader<coord_type, quetzal::genetics::microsatellite>;
-  using sample_type = loader_type::return_type;
+  using sample_type = std::vector<decrypt::utils::GeneCopy>;
   using demographic_policy = demography::strategy::mass_based;
   using coal_policy = coal::policies::distance_to_parent_leaf_name<coord_type, time_type>;
   using core_type = sim::SpatiallyExplicit<coord_type, time_type, demographic_policy, coal_policy>;
@@ -221,16 +218,33 @@ private:
   // TODO haploid versus diploid. Plus, format changed: ID/coordinates/no genetics
   sample_type build_sample()
   {
+    using decrypt::utils::GeneCopy;
     std::string datafile = vm["sample"].as<std::string>();
-    quetzal::genetics::Loader<coord_type, quetzal::genetics::microsatellite> reader;
-    auto sample = reader.read(datafile);
-    sample.reproject(m_landscape);
-    return sample;
+    rapidcsv::Document doc(datafile);
+    std::vector<std::string> IDs = doc.GetColumn<std::string>("ID");
+    std::vector<double> lats = doc.GetColumn<double>("latitude");
+    std::vector<double> longs = doc.GetColumn<double>("longitude");
+
+    unsigned int i = 0;
+    std::vector<GeneCopy> gene_copies;
+    for(auto const& id : IDs)
+    {
+      coord_type x;
+      x.lat(lats[i]);
+      x.lon(longs[i]);
+      x = m_landscape.reproject_to_centroid(x);
+      gene_copies.push_back(GeneCopy(id, x));
+    }
+    return gene_copies;
   }
 
   void show_reprojected_sample()
   {
-    std::cout << "Reprojected sample:\n\n" << m_sample << std::endl;
+    std::cout << "Reprojected sample:\n\n";
+    for(auto const& gene_copy: m_sample)
+    {
+      std::cout << gene_copy.id() << "\t" << gene_copy.x() << std::endl;
+    }
   }
 
   core_type build_simulation_core()
@@ -323,22 +337,13 @@ private:
 
   void simulate_coalescence(std::mt19937 & gen)
   {
-    using decrypt::utils::GeneCopy;
-    std::vector<GeneCopy> v;
-    for(auto const& it1 : m_sample.get_sampling_points())
-    {
-      for(unsigned int i = 0; i < m_sample.individuals_at(it1).size(); ++ i)
-      {// TODO here for diploidi and names
-        v.emplace_back(it1);
-      }
-    }
-    auto get_name = [](auto const& ind, time_type){return std::to_string(ind.id());};
-    auto get_position = [](auto const& ind, time_type){return ind.x();};
+    auto get_name = [](auto const& gene_copy, time_type){return gene_copy.id();};
+    auto get_position = [](auto const& gene_copy, time_type){return gene_copy.x();};
     std::string genealogies;
     unsigned int n_loci = vm["n_loci"].as<unsigned int>();
     for(unsigned int locus = 0; locus < n_loci ; ++locus)
     {
-      genealogies.append(m_core.coalesce_to_mrca<>(v, m_sample_time, get_position, get_name, gen));
+      genealogies.append(m_core.coalesce_to_mrca<>(m_sample, m_sample_time, get_position, get_name, gen));
       genealogies.append("\n\n");
     }
     genealogies.pop_back();

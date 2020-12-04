@@ -57,16 +57,10 @@ namespace decrypt::utils{
   {
   private:
     using coord_type = quetzal::geography::GeographicCoordinates;
-    unsigned int m_id;
+    std::string m_id;
     coord_type m_x;
-    static unsigned int m_next_available_id;
-    auto next_id(){
-      auto id = m_next_available_id;
-      ++m_next_available_id;
-      return id;
-    }
   public:
-    GeneCopy(coord_type const& x): m_id(next_id()), m_x(x){}
+    GeneCopy(std::string const& id, coord_type const& x): m_id(id), m_x(x){}
     auto id() const {return m_id;}
     auto x() const {return m_x;}
   };
