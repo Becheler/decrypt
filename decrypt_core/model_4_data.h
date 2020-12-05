@@ -50,28 +50,25 @@ auto handle_options(int argc, char* argv[])
     bpo::options_description generalOptions{"General"};
     generalOptions.add_options()
     ("help,h", "Help screen")
-    ("config", bpo::value<std::string>(), "Config file")
-    ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map");
+    ("config", bpo::value<std::string>()->required(), "Config file");
 
     bpo::options_description fileOptions{"File"};
     fileOptions.add_options()
-    ("help", "produce help message")
-    ("ploidy", bpo::value<unsigned int>()->required(), "1 for haploid, 2 for diploid.")
-    ("n_replicates", bpo::value<unsigned int>()->required(), "Number of replicates to simulate. For each replicate, a forward demographic history and loci genealogies are simulated.")
-    ("n_loci", bpo::value<unsigned int>()->required(), "Number of loci to simulate")
-    ("sample",  bpo::value<std::string>(), "File name for the lon/lat of sampled genetic material")
+    ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map")
+    ("n_loci", bpo::value<int>()->required(), "Number of loci to simulate")
+    ("sample",  bpo::value<std::string>()->required(), "File name for the lon/lat of sampled genetic material")
     ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
     ("lat_0", bpo::value<double>()->required(), "Introduction point latitude")
-    ("N_0", bpo::value<unsigned int>()->required(), "Number of gene copies at introduction point")
-    ("duration", bpo::value<unsigned int>()->required(), "Number of generations to simulate")
-    ("K_suit", bpo::value<unsigned int>()->required(), "Carrying capacity in suitable areas")
-    ("K_max", bpo::value<unsigned int>()->required(), "Highest carrying capacity in areas with null suitability")
-    ("K_min", bpo::value<unsigned int>()->required(), "Lowest carrying capacity in areas with null suitability")
+    ("N_0", bpo::value<int>()->required(), "Number of gene copies at introduction point")
+    ("duration", bpo::value<int>()->required(), "Number of generations to simulate")
+    ("K_suit", bpo::value<int>()->required(), "Carrying capacity in suitable areas")
+    ("K_max", bpo::value<int>()->required(), "Highest carrying capacity in areas with null suitability")
+    ("K_min", bpo::value<int>()->required(), "Lowest carrying capacity in areas with null suitability")
     ("p_K", bpo::value<double>()->required(), "Probability to have highest carrying capacity in areas with 0 suitability")
     ("r", bpo::value<double>()->required(), "Growth rate")
     ("emigrant_rate", bpo::value<double>()->required(), "Emigrant rate between the four neighboring cells")
     ("demography_out",  bpo::value<std::string>(), "File name for the simulated demography output")
-    ("database", bpo::value<std::string>(), "Filename database storing the output");
+    ("database", bpo::value<std::string>()->required(), "Filename database storing the output");
 
     store(parse_command_line(argc, argv, generalOptions), vm);
     if (vm.count("config"))
@@ -137,8 +134,8 @@ private:
 class SimulationContext
 {
 public:
-  SimulationContext(bpo::variables_map const& opts, std::mt19937& gen):
-  vm(opts),
+  SimulationContext(bpo::variables_map opts, std::mt19937& gen):
+  m_vm(opts),
   m_database(build_database()),
   m_landscape(build_landscape()),
   m_sample(build_sample()),
@@ -174,6 +171,8 @@ private:
     std::function<std::vector<coord_type>(coord_type)>
   >;
   using reproduction_type = std::function<unsigned int(std::mt19937&, coord_type, time_type)>;
+
+  bpo::variables_map m_vm;
   database_type m_database;
   landscape_type m_landscape;
   sample_type m_sample;
@@ -183,57 +182,56 @@ private:
   time_type m_sample_time;
   dispersal_type m_dispersal_kernel;
   std::string m_newicks;
-  bpo::variables_map vm;
 
   database_type build_database()
   {
-    if(vm.count("database"))
+    std::cout << "Database initialization" << std::endl;
+    try
     {
-      try
-      {
-        std::string filename = vm["database"].as<std::string>();
-        return database_type(filename);
-      }
-      catch(const std::exception& e)
-      {
-        std::cout << "In SimulationContext, building database: " << e.what();
-      }
+      std::string filename = m_vm["database"].as<std::string>();
+      return database_type(filename);
+    }
+    catch(const std::exception& e)
+    {
+      throw std::runtime_error(std::string("In SimulationContext: Error when building database. ") + e.what());
     }
   }
 
   // TODO: pas sûr de la syntaxe du try/catch
   landscape_type build_landscape()
   {
-    const std::string filename = vm["landscape"].as<std::string>();
+    std::string filename = m_vm["landscape"].as<std::string>();
+    std::cout << "Landscape initialization" << std::endl;
     try
     {
       return landscape_type({{"suitability", filename}}, {time_type(0)});
     }
     catch(const std::exception& e)
     {
-      std::cout << "In SimulationContext, building landscape: " << e.what();
+      throw std::runtime_error(std::string("In SimulationContext: Error when building landscape. ") + e.what());
     }
   }
 
   // TODO haploid versus diploid. Plus, format changed: ID/coordinates/no genetics
   sample_type build_sample()
   {
+    std::cout << "Sample initialization" << std::endl;
+    std::string datafile = m_vm["sample"].as<std::string>();
     using decrypt::utils::GeneCopy;
-    std::string datafile = vm["sample"].as<std::string>();
     rapidcsv::Document doc(datafile);
     std::vector<std::string> IDs = doc.GetColumn<std::string>("ID");
-    std::vector<double> lats = doc.GetColumn<double>("latitude");
-    std::vector<double> longs = doc.GetColumn<double>("longitude");
-
+    std::vector<double> v_lat = doc.GetColumn<double>("latitude");
+    std::vector<double> v_lon = doc.GetColumn<double>("longitude");
     unsigned int i = 0;
     std::vector<GeneCopy> gene_copies;
     for(auto const& id : IDs)
     {
       coord_type x;
-      x.lat(lats[i]);
-      x.lon(longs[i]);
+      x.lat(v_lat.at(i));
+      x.lon(v_lon.at(i));
       x = m_landscape.reproject_to_centroid(x);
       gene_copies.push_back(GeneCopy(id, x));
+      ++i;
     }
     return gene_copies;
   }
@@ -249,29 +247,31 @@ private:
 
   core_type build_simulation_core()
   {
-    coord_type x_0(vm["lat_0"].as<double>(), vm["lon_0"].as<double>());
+    std::cout << "Simulation core initialization" << std::endl;
+    coord_type x_0(m_vm["lat_0"].as<double>(), m_vm["lon_0"].as<double>());
     x_0 = m_landscape.reproject_to_centroid(x_0);
     m_t_0 = 0;
-    m_sample_time = vm["duration"].as<unsigned int>();
-    unsigned int N_0 = vm["N_0"].as<unsigned int>();
+    m_sample_time = m_vm["duration"].as<int>();
+    int N_0 = m_vm["N_0"].as<int>();
     return core_type(x_0, m_t_0, N_0);
   }
 
   reproduction_type build_reproduction_function(std::mt19937 & gen)
   {
+    std::cout << "Reproduction expression initialization" << std::endl;
     using expr::literal_factory;
     using expr::use;
 
     // growth rate
     literal_factory<coord_type, time_type> lit;
-    auto r = lit( vm["r"].as<double>() );
+    auto r = lit( m_vm["r"].as<double>() );
 
     // carrying capacity
     auto suitability = m_landscape["suitability"];
-    unsigned int K_suit = vm["K_suit"].as<unsigned int>();
-    unsigned int K_min = vm["K_min"].as<unsigned int>();
-    unsigned int K_max = vm["K_max"].as<unsigned int>();
-    double p_K = vm["p_K"].as<double>();
+    int K_suit = m_vm["K_suit"].as<int>();
+    int K_min = m_vm["K_min"].as<int>();
+    int K_max = m_vm["K_max"].as<int>();
+    double p_K = m_vm["p_K"].as<double>();
     auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type)
     {
       if( suitability(x,0) == 0)
@@ -295,12 +295,13 @@ private:
 
   dispersal_type build_dispersal_kernel()
   {
+    std::cout << "Dispersal kernel initialization" << std::endl;
     auto suitability = m_landscape["suitability"];
     std::function<double(coord_type)> friction = [&suitability](coord_type const& x){
       if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
       else return 1 - suitability(x, 0);
     };
-    double emigrant_rate = vm["emigrant_rate"].as<double>();
+    double emigrant_rate = m_vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(m_landscape);
     std::function<std::vector<coord_type>(coord_type)> get_neighbors = decrypt::utils::make_neighboring_cells_functor(env_ref);
     return demographic_policy::make_light_neighboring_migration(coord_type(), emigrant_rate, friction, get_neighbors);
@@ -313,11 +314,11 @@ private:
 
   void maybe_save_demography()
   {
-    if(vm.count("demography_out"))
+    if(m_vm.count("demography_out"))
     {
       try
       {
-        std::string filename = vm["demography_out"].as<std::string>();
+        std::string filename = m_vm["demography_out"].as<std::string>();
         if(std::filesystem::exists(filename))
         {
           std::string message("Unable to save demography: file " +filename+ " already exists.");
@@ -340,7 +341,7 @@ private:
     auto get_name = [](auto const& gene_copy, time_type){return gene_copy.id();};
     auto get_position = [](auto const& gene_copy, time_type){return gene_copy.x();};
     std::string genealogies;
-    unsigned int n_loci = vm["n_loci"].as<unsigned int>();
+    int n_loci = m_vm["n_loci"].as<int>();
     for(unsigned int locus = 0; locus < n_loci ; ++locus)
     {
       genealogies.append(m_core.coalesce_to_mrca<>(m_sample, m_sample_time, get_position, get_name, gen));
