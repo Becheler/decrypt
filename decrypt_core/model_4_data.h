@@ -297,7 +297,7 @@ private:
   {
     std::cout << "Dispersal kernel initialization" << std::endl;
     auto suitability = m_landscape["suitability"];
-    std::function<double(coord_type)> friction = [&suitability](coord_type const& x){
+    std::function<double(coord_type)> friction = [suitability](coord_type const& x){
       if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
       else return 1 - suitability(x, 0);
     };
@@ -316,23 +316,16 @@ private:
   {
     if(m_vm.count("demography_out"))
     {
-      try
+      std::string filename = m_vm["demography_out"].as<std::string>();
+      if(std::filesystem::exists(filename))
       {
-        std::string filename = m_vm["demography_out"].as<std::string>();
-        if(std::filesystem::exists(filename))
-        {
-          std::string message("Unable to save demography: file " +filename+ " already exists.");
-          throw(std::runtime_error(message));
-        }
-        using expr::use;
-        auto pop_sizes = m_core.pop_size_history();
-        auto N = use( [pop_sizes](coord_type x, time_type t){ return pop_sizes(x,t);} );
-        m_landscape.export_to_geotiff(N, m_t_0, m_sample_time, [&pop_sizes](time_type const& t){return pop_sizes.get().definition_space(t);}, filename);
+        std::string message("Unable to save demography: file " +filename+ " already exists.");
+        throw(std::runtime_error(message));
       }
-      catch(const std::exception& e)
-      {
-        std::cout << e.what();
-      }
+      using expr::use;
+      auto pop_sizes = m_core.pop_size_history();
+      auto N = use( [pop_sizes](coord_type x, time_type t){ return pop_sizes(x,t);} );
+      m_landscape.export_to_geotiff(N, m_t_0, m_sample_time, [&pop_sizes](time_type const& t){return pop_sizes.get().definition_space(t);}, filename);
     }
   }
 
