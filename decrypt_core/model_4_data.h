@@ -298,8 +298,8 @@ private:
     std::cout << "Dispersal kernel initialization" << std::endl;
     auto suitability = m_landscape["suitability"];
     std::function<double(coord_type)> friction = [suitability](coord_type const& x){
-      if(suitability(x,0) <= 0.1) {return 0.9;} //ocean cell
-      else return 1 - suitability(x, 0);
+      if(suitability(x,0) <= 0.5) {return 0.99;} //ocean cell
+      else return 1.0 - suitability(x, 0);
     };
     double emigrant_rate = m_vm["emigrant_rate"].as<double>();
     auto env_ref = std::cref(m_landscape);
