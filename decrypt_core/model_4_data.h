@@ -274,11 +274,11 @@ private:
     double p_K = m_vm["p_K"].as<double>();
     auto K = [K_suit, K_min, K_max, p_K, &gen, suitability](coord_type const& x, time_type)
     {
-      if( suitability(x,0) == 0)
+      if( suitability(x,0) <= 0.1)
       { //ocean cell
         return std::bernoulli_distribution(p_K)(gen) ? K_max : K_min;
       }else{
-        return K_suit;
+        return static_cast<int>(static_cast<double>(K_suit)*suitability(x,0));
       }
     };
 
