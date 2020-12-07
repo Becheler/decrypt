@@ -318,6 +318,7 @@ private:
       }
 
       if(v.size() >= 2){
+        assert(N(x,t) >= 1 && "Population size should be positive for evaluating coalescence probability" );
         auto last = Merger::merge(v.begin(), v.end(), N(x, t), make_tree(x,t), binop, gen );
         forest.erase(x);
         for(auto it = v.begin(); it != last; ++it){
@@ -491,6 +492,7 @@ public:
   {
     assert(trees.size() >= 2 && "Trying to coalesce less than 2 nodes.");
     assert(g > 0 && "Number of generations for the coalescence process should be at least 1");
+    assert(N >= 1 && "Population size should be positive for evaluating coalescence probability");
     using merger_type = MergerType;
     unsigned int t = 0;
     auto last = trees.end();

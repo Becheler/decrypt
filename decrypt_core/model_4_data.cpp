@@ -15,11 +15,12 @@ int main(int argc, char* argv[])
   if (vm.count("help")) {
       return 1;
   }
-  try{
-    auto result = SimulationContext::run(vm);
-  }
-  catch(const std::exception& e){
-    std::cout << e.what() << std::endl;
-  }
+  PrintVariableMap(vm);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::cout << "Initialization" << std::endl;
+  SimulationContext s(vm, gen);
+  std::cout << "Running ..." << std::endl;
+  s.run(gen);
   return 0;
 }
