@@ -253,7 +253,9 @@ private:
     m_t_0 = 0;
     m_sample_time = m_vm["duration"].as<int>();
     int N_0 = m_vm["N_0"].as<int>();
-    return core_type(x_0, m_t_0, N_0);
+    core_type core(x_0, m_t_0, N_0);
+    core.ancestral_Wright_Fisher_N(N_0);
+    return core;
   }
 
   reproduction_type build_reproduction_function(std::mt19937 & gen)

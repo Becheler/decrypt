@@ -61,6 +61,7 @@ namespace decrypt::utils{
     coord_type m_x;
   public:
     GeneCopy(std::string const& id, coord_type const& x): m_id(id), m_x(x){}
+    GeneCopy(coord_type const& x): m_id(""), m_x(x){}
     auto id() const {return m_id;}
     auto x() const {return m_x;}
   };
