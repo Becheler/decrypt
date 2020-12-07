@@ -166,6 +166,8 @@ public:
 	  * \section Output
 	  * \include geography/test/EnvironmentalQuantity/EnvironmentalQuantity_test.output
 		*/
+  // TODO
+  [[deprecated("definition space is not explicit on what it does")]]
   const std::vector<GeographicCoordinates>& geographic_definition_space() const {
     return m_valid_LonLat;
   }
@@ -211,7 +213,9 @@ public:
 		*/
   GeographicCoordinates reproject_to_centroid(GeographicCoordinates const& c) const {
     if( ! is_in_spatial_extent(c)){
-      throw std::runtime_error("Geographic coordinate should belong to spatial extent to be reprojected");
+      // TODO UPDATE
+      throw std::runtime_error("(Lat: " + std::to_string(c.lat()) + ", Lon: " + std::to_string(c.lon()) +
+      "): Geographic coordinate should be in spatial extent to be reprojected");
     }
     auto xy = to_xy(c);
     return to_lat_lon(xy.x, xy.y);
@@ -382,6 +386,8 @@ private:
     return XY(col, row);
   }
 
+  // TODO
+  [[deprecated("bad design choice relying on too much coordinates being stored")]]
   std::vector<XY> get_domain(unsigned int bandID) const {
     assert( bandID < depth());
     std::vector<XY> v;

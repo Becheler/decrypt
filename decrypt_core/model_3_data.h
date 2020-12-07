@@ -1,4 +1,17 @@
 
+// Copyright 2020 Arnaud Becheler    <arnaud.becheler@gmail.com>
+
+/***********************************************************************                                                                         *
+* This program is free software; you can redistribute it and/or modify *
+* it under the terms of the GNU General Public License as published by *
+* the Free Software Foundation; either version 2 of the License, or    *
+* (at your option) any later version.                                  *
+*                                                                      *
+************************************************************************/
+
+#ifndef __M3_REALITY_CHECK_H_INCLUDED__
+#define __M3_REALITY_CHECK_H_INCLUDED__
+
 #include "include/quetzal.h"
 
 #include <boost/program_options.hpp>
@@ -114,6 +127,16 @@ public:
     std::cout << "Landscape initialized" << std::endl;
 
     /******************************
+    * Genetic dataset
+    *****************************/
+    std::string datafile = vm["sample"].as<std::string>();
+  	quetzal::genetics::Loader<coord_type, quetzal::genetics::microsatellite> reader;
+  	auto dataset = reader.read(datafile);
+    std::cout << "Dataset initialized:\n\n" << dataset << std::endl;
+    dataset.reproject(env);
+    std::cout << "Dataset reprojected:\n\n" << dataset << std::endl;
+
+    /******************************
     * Simulator configuration
     *****************************/
     using demographic_policy = quetzal::demography::strategy::mass_based;
@@ -180,20 +203,20 @@ public:
     }
 
     /**********************
-    *  Sampling schemes
+    *  Coalescence
     **********************/
-    std::string datafile = vm["sample"].as<std::string>();
-  	quetzal::genetics::Loader<coord_type, quetzal::genetics::microsatellite> reader;
-  	auto dataset = reader.read(datafile).reproject(env);
+
 
     std::cout << "--- Simulating coalescents" << std::endl;
-     std::vector<Ind> v;
+    std::vector<Ind> v;
 
-     for(auto const& it1 : dataset.get_sampling_points()){
-       for(unsigned int i = 0; i < dataset.individuals_at(it1).size(); ++ i){
-         v.emplace_back(it1);
-       }
-     }
+    for(auto const& it1 : dataset.get_sampling_points())
+    {
+      for(unsigned int i = 0; i < dataset.individuals_at(it1).size(); ++ i)
+      {
+        v.emplace_back(it1);
+      }
+    }
 
     auto get_name = [](auto const& ind, time_type){return std::to_string(ind.id());};
     auto get_position = [](auto const& ind, time_type){return ind.x();};
@@ -230,3 +253,5 @@ public:
 
   }
 };
+
+#endif
