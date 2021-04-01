@@ -25,6 +25,10 @@ int main(int argc, char* argv[])
   if(verbose){std::cout << "Initialization" << std::endl;}
   SimulationContext s(vm, gen, verbose);
   if(verbose){std::cout << "Running ..." << std::endl;}
-  s.run(gen);
+  try{
+    s.run(gen);
+  }catch(const std::domain_error &){
+    return 1;
+  }
   return 0;
 }

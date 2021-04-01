@@ -53,6 +53,7 @@ auto handle_options(int argc, char* argv[])
     ("v", "verbose mode")
     ("config", bpo::value<std::string>()->required(), "Config file")
     ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map")
+    ("reuse", bpo::value<int>()->required(), "How many times pseudo-observed should be generated under the same spatial history")
     ("n_loci", bpo::value<int>()->required(), "Number of loci to simulate")
     ("sample",  bpo::value<std::string>()->required(), "File name for the lon/lat of sampled genetic material")
     ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
@@ -71,6 +72,7 @@ auto handle_options(int argc, char* argv[])
     bpo::options_description fileOptions{"File"};
     fileOptions.add_options()
     ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map")
+    ("reuse", bpo::value<int>()->required(), "How many times pseudo-observed should be generated under the same spatial history")
     ("n_loci", bpo::value<int>()->required(), "Number of loci to simulate")
     ("sample",  bpo::value<std::string>()->required(), "File name for the lon/lat of sampled genetic material")
     ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
@@ -174,8 +176,11 @@ public:
   {
     expand_demography(gen);
     maybe_save_demography();
-    simulate_coalescence(gen);
-    save_genealogies();
+    int nb_reuse = m_vm["reuse"].as<int>();
+    for(int i=1; i <= nb_reuse; ++i){
+      simulate_coalescence(gen);
+      save_genealogies();
+    }
   }
 
 private:
