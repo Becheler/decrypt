@@ -90,3 +90,25 @@ chmod +x decrypt/animate.R
 ```
 
 Animation will require R with the packages raster, sp and viridis installed. Also requires GraphicsMagick.
+
+# GDAL static compilation
+
+Download last version of GDAL then:
+
+```
+cd home/me/Downloads/gdal232/gdal-2.3.2
+mkdir build
+./configure --prefix=/home/me/Downloads/gdal232/gdal-2.3.2/build/ --without-ld-shared --disable-shared --enable-static
+make
+make install
+/usr/bin/gdalinfo --version
+build/bin/gdalinfo --version
+```
+For a static release of Decrypt cores:
+```
+cd decrypt
+mkdir Static
+cd Static
+cmake .. -DCMAKE_PREFIX_PATH=/home/becheler/Downloads/gdal-3.2.2/build
+cmake --build . --config Release
+```
