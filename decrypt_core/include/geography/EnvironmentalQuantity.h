@@ -167,7 +167,6 @@ public:
 	  * \include geography/test/EnvironmentalQuantity/EnvironmentalQuantity_test.output
 		*/
   // TODO
-  [[deprecated("definition space is not explicit on what it does")]]
   const std::vector<GeographicCoordinates>& geographic_definition_space() const {
     return m_valid_LonLat;
   }
@@ -387,7 +386,6 @@ private:
   }
 
   // TODO
-  [[deprecated("bad design choice relying on too much coordinates being stored")]]
   std::vector<XY> get_domain(unsigned int bandID) const {
     assert( bandID < depth());
     std::vector<XY> v;

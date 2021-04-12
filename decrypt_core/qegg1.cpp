@@ -6,7 +6,7 @@
 //
 //
 //
-#include "model_4_data.h"
+#include "qegg1.h"
 
 int main(int argc, char* argv[])
 {
