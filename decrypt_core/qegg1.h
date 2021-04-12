@@ -50,11 +50,29 @@ auto handle_options(int argc, char* argv[])
     bpo::options_description generalOptions{"General"};
     generalOptions.add_options()
     ("help,h", "Help screen")
-    ("config", bpo::value<std::string>()->required(), "Config file");
+    ("v", "verbose mode")
+    ("config", bpo::value<std::string>()->required(), "Config file")
+    ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map")
+    ("reuse", bpo::value<int>()->required(), "How many times pseudo-observed should be generated under the same spatial history")
+    ("n_loci", bpo::value<int>()->required(), "Number of loci to simulate")
+    ("sample",  bpo::value<std::string>()->required(), "File name for the lon/lat of sampled genetic material")
+    ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
+    ("lat_0", bpo::value<double>()->required(), "Introduction point latitude")
+    ("N_0", bpo::value<int>()->required(), "Number of gene copies at introduction point")
+    ("duration", bpo::value<int>()->required(), "Number of generations to simulate")
+    ("K_suit", bpo::value<int>()->required(), "Carrying capacity in suitable areas")
+    ("K_max", bpo::value<int>()->required(), "Highest carrying capacity in areas with null suitability")
+    ("K_min", bpo::value<int>()->required(), "Lowest carrying capacity in areas with null suitability")
+    ("p_K", bpo::value<double>()->required(), "Probability to have highest carrying capacity in areas with 0 suitability")
+    ("r", bpo::value<double>()->required(), "Growth rate")
+    ("emigrant_rate", bpo::value<double>()->required(), "Emigrant rate between the four neighboring cells")
+    ("demography_out",  bpo::value<std::string>(), "File name for the simulated demography output")
+    ("database", bpo::value<std::string>()->required(), "Filename database storing the output");
 
     bpo::options_description fileOptions{"File"};
     fileOptions.add_options()
     ("landscape", bpo::value<std::string>()->required(), "Geospatial file in tiff format giving the friction map")
+    ("reuse", bpo::value<int>()->required(), "How many times pseudo-observed should be generated under the same spatial history")
     ("n_loci", bpo::value<int>()->required(), "Number of loci to simulate")
     ("sample",  bpo::value<std::string>()->required(), "File name for the lon/lat of sampled genetic material")
     ("lon_0", bpo::value<double>()->required(), "Introduction point longitude")
@@ -95,36 +113,41 @@ auto handle_options(int argc, char* argv[])
 class database_type
 {
 public:
-  static auto already_exists(std::string const& filename)
-  {
-    std::string message = "Unable to create database: file " + filename +
-    " already exists.\nRemove existing file or change the database name in the configuration file.";
-    return std::runtime_error(message);
-  }
+
   database_type(std::string const& filename){
-    if(std::filesystem::exists(filename)) throw(already_exists(filename));
-    this->m_database = sqlite3pp::database(filename.c_str());
-    create_results_table();
+  this->m_database = sqlite3pp::database(filename.c_str());
+  create_table();
   }
 
-  void insert_results(std::string const& newicks)
+  auto insert_params_results_and_get_rowid(bpo::variables_map vm, std::string const& newicks)
   {
     sqlite3pp::command cmd(
       this->m_database,
-      "INSERT INTO results (newicks) VALUES (?)"
+      "INSERT INTO core4_pods (lon_0, lat_0, N_0, duration, K_suit, K_max, K_min, p_K, r, emigrant_rate, newicks) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
     );
-    cmd.binder() << newicks;
+    cmd.binder() << vm["lon_0"].as<double>()
+                  << vm["lat_0"].as<double>()
+                  << vm["N_0"].as<int>()
+                  << vm["duration"].as<int>()
+                  << vm["K_suit"].as<int>()
+                  << vm["K_max"].as<int>()
+                  << vm["K_min"].as<int>()
+                  << vm["p_K"].as<double>()
+                  << vm["r"].as<double>()
+                  << vm["emigrant_rate"].as<double>()
+                  << newicks;
     cmd.execute();
+    return this->m_database.last_insert_rowid();
   }
 
 private:
   sqlite3pp::database m_database;
 
-  void create_results_table()
+  void create_table()
   {
     sqlite3pp::command cmd(
       this->m_database,
-      "CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, newicks TEXT)"
+      "CREATE TABLE IF NOT EXISTS core4_pods(lon_0 DOUBLE, lat_0 DOUBLE, N_0 INTEGER, duration INTEGER, K_suit INTEGER, K_max INTEGER, K_min INTEGER, p_K DOUBLE, r DOUBLE, emigrant_rate DOUBLE, newicks TEXT)"
     );
     cmd.execute();
   }
@@ -134,7 +157,8 @@ private:
 class SimulationContext
 {
 public:
-  SimulationContext(bpo::variables_map opts, std::mt19937& gen):
+  SimulationContext(bpo::variables_map opts, std::mt19937& gen, bool verbose):
+  verbose(verbose),
   m_vm(opts),
   m_database(build_database()),
   m_landscape(build_landscape()),
@@ -143,18 +167,24 @@ public:
   m_reproduction_expr(build_reproduction_function(gen)),
   m_dispersal_kernel(build_dispersal_kernel())
   {
-    show_reprojected_sample();
+    if(verbose){
+      show_reprojected_sample();
+    }
   };
 
   void run(std::mt19937& gen)
   {
     expand_demography(gen);
     maybe_save_demography();
-    simulate_coalescence(gen);
-    save_genealogies();
+    int nb_reuse = m_vm["reuse"].as<int>();
+    for(int i=1; i <= nb_reuse; ++i){
+      simulate_coalescence(gen);
+      save_genealogies();
+    }
   }
 
 private:
+
   using time_type = int;
   using landscape_type = geo::DiscreteLandscape<std::string,time_type>;
   using coord_type = landscape_type::coord_type;
@@ -172,6 +202,7 @@ private:
   >;
   using reproduction_type = std::function<unsigned int(std::mt19937&, coord_type, time_type)>;
 
+  bool verbose;
   bpo::variables_map m_vm;
   database_type m_database;
   landscape_type m_landscape;
@@ -185,7 +216,7 @@ private:
 
   database_type build_database()
   {
-    std::cout << "Database initialization" << std::endl;
+    if(verbose){std::cout << "Database initialization" << std::endl;}
     try
     {
       std::string filename = m_vm["database"].as<std::string>();
@@ -201,7 +232,7 @@ private:
   landscape_type build_landscape()
   {
     std::string filename = m_vm["landscape"].as<std::string>();
-    std::cout << "Landscape initialization" << std::endl;
+    if(verbose){std::cout << "Landscape initialization" << std::endl;}
     try
     {
       return landscape_type({{"suitability", filename}}, {time_type(0)});
@@ -215,7 +246,7 @@ private:
   // TODO haploid versus diploid. Plus, format changed: ID/coordinates/no genetics
   sample_type build_sample()
   {
-    std::cout << "Sample initialization" << std::endl;
+    if(verbose){std::cout << "Sample initialization" << std::endl;}
     std::string datafile = m_vm["sample"].as<std::string>();
     using decrypt::utils::GeneCopy;
     rapidcsv::Document doc(datafile);
@@ -247,7 +278,7 @@ private:
 
   core_type build_simulation_core()
   {
-    std::cout << "Simulation core initialization" << std::endl;
+    if(verbose){std::cout << "Simulation core initialization" << std::endl;}
     coord_type x_0(m_vm["lat_0"].as<double>(), m_vm["lon_0"].as<double>());
     x_0 = m_landscape.reproject_to_centroid(x_0);
     m_t_0 = 0;
@@ -260,7 +291,7 @@ private:
 
   reproduction_type build_reproduction_function(std::mt19937 & gen)
   {
-    std::cout << "Reproduction expression initialization" << std::endl;
+    if(verbose){std::cout << "Reproduction expression initialization" << std::endl;}
     using expr::literal_factory;
     using expr::use;
 
@@ -297,7 +328,7 @@ private:
 
   dispersal_type build_dispersal_kernel()
   {
-    std::cout << "Dispersal kernel initialization" << std::endl;
+    if(verbose){std::cout << "Dispersal kernel initialization" << std::endl;}
     auto suitability = m_landscape["suitability"];
     std::function<double(coord_type)> friction = [suitability](coord_type const& x){
       if(suitability(x,0) <= 0.5) {return 0.99;} //ocean cell
@@ -349,7 +380,8 @@ private:
 
   void save_genealogies()
   {
-    m_database.insert_results(m_newicks);
+    auto ID = m_database.insert_params_results_and_get_rowid(m_vm, m_newicks);
+    std::cout << ID << std::endl;
   }
 };
 
