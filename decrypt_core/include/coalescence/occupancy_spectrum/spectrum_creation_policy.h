@@ -11,11 +11,8 @@
 #ifndef __OCCUPANCY_SPECTRUM_SAMPLER_H_INCLUDED__
 #define __OCCUPANCY_SPECTRUM_SAMPLER_H_INCLUDED__
 
-
 #include "OccupancySpectrumDistribution.h"
 #include "memoize.h"
-#include <boost/multiprecision/cpp_int.hpp>
-#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include <vector>
 #include <random>
