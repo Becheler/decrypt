@@ -14,7 +14,9 @@
 #include "../demography/History.h"
 #include "../coalescence/containers/Forest.h"
 #include "../coalescence/policies/merger.h"
+#include "../coalescence/occupancy_spectrum/on_the_fly.h"
 
+#include <boost/math/special_functions/binomial.hpp>
 #include <map>
 
 namespace quetzal {

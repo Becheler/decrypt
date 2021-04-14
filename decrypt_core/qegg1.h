@@ -12,12 +12,12 @@
 #ifndef __M4_REALITY_CHECK_H_INCLUDED__
 #define __M4_REALITY_CHECK_H_INCLUDED__
 
-#include "include/quetzal.h"
+#include "include/geography/DiscreteLandscape.h"
+
 #include "utils.h"
 #include "rapidcsv.h"
 
 #include <boost/program_options.hpp>
-#include <boost/math/special_functions/binomial.hpp>
 
 #include "sqlite3pp.h"
 
